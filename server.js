@@ -7,7 +7,6 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-// Хранилище для точек данных
 let dataPoints = [];
 let nextId = 1;
 
@@ -16,25 +15,59 @@ let currentTestData = [];
 let currentTrainRatio = null;
 let currentDataHash = '';
 
-// Генерация случайных данных с шумом
-function generateDataWithNoise(numPoints = 100, degree = 1, noiseLevel = 0.5) {
-    const points = [];
+function generateDataWithNoise(
+    numPoints = 100,
+    coefficients = {
+        sinAmplitude: 3,
+        sinFrequency: 0.5,
+        sqrtCoeff: 2,
+        linearCoeff: 0,
+        xMin: 0,
+        xMax: 10
+    },
+    noiseLevel = 0.5
+  ) {
+    const points = new Array(numPoints);
+    const {xMin = 0, xMax = 10} = coefficients;
+    const rangeX = xMax - xMin;
+    
     for (let i = 0; i < numPoints; i++) {
-        const x = Math.random() * 10;
-        let y = Math.sin(x * 0.5) * 3 + Math.pow(x, 0.5) * 2;
-        y += (Math.random() - 0.5) * noiseLevel * 10;
-        points.push({ x, y, id: nextId++ });
+        const x = xMin + Math.random() * rangeX;
+        const sqrtX = Math.sqrt(x);
+        const sinX = Math.sin(coefficients.sinFrequency * x);
+        
+        const baseY = coefficients.sinAmplitude * sinX + coefficients.sqrtCoeff * sqrtX + coefficients.linearCoeff * x;
+        
+        points[i] = {
+            x,
+            y: baseY + (Math.random() - 0.5) * noiseLevel * 10,
+            id: nextId++
+        };
     }
     return points;
 }
-// Инициализация начальных данных
+
 dataPoints = generateDataWithNoise();
 
 app.post('/update_noise', (req, res) => {
-    const { noiseLevel } = req.body;
+    const { 
+        noiseLevel, 
+        coefficients = {
+            sinAmplitude: 3,
+            sinFrequency: 0.5,
+            sqrtCoeff: 2,
+            linearCoeff: 0,
+            xMin: 0,
+            xMax: 10
+        } 
+    } = req.body;
     
     dataPoints = dataPoints.map(p => {
-        const baseY = Math.sin(p.x * 0.5) * 3 + Math.pow(p.x, 0.5) * 2;
+        const baseY = 
+            coefficients.sinAmplitude * Math.sin(coefficients.sinFrequency * p.x) +
+            coefficients.sqrtCoeff * Math.sqrt(p.x) +
+            coefficients.linearCoeff * p.x;
+            
         const newY = baseY + (Math.random() - 0.5) * noiseLevel * 10;
         return { ...p, y: newY };
     });
@@ -61,11 +94,22 @@ app.delete('/delete_point/:id', (req, res) => {
 });
 
 app.post('/reset_points', (req, res) => {
-    const { noiseLevel = 0.5, degree = 1 } = req.body;
-    dataPoints = generateDataWithNoise(100, degree, noiseLevel);
+    const { 
+      noiseLevel = 0.5,
+      coefficients = {
+        sinAmplitude: 3,
+        sinFrequency: 0.5,
+        sqrtCoeff: 2,
+        linearCoeff: 0,
+        xMin: 0,
+        xMax: 10
+      }
+    } = req.body;
+    
+    dataPoints = generateDataWithNoise(100, coefficients, noiseLevel);
     nextId = 1;
     res.json({ message: 'Points reset' });
-});
+  });
 
 function addPolynomialFeatures(x, degree) {
     return Array(degree + 1).fill(0).map((_, i) => Math.pow(x, i));
@@ -79,6 +123,14 @@ app.post('/train_model', async (req, res) => {
     const startTime = Date.now();
     try {
         const {
+            coefficients = {
+                sinAmplitude: 3,
+                sinFrequency: 0.5,
+                sqrtCoeff: 2,
+                linearCoeff: 0,
+                xMin: 0,
+                xMax: 10
+            },
             degree = 1,
             trainRatio = 70,
             loss_function = 'MSE',
@@ -154,7 +206,6 @@ app.post('/train_model', async (req, res) => {
                 validationSplit: 0.2,
                 callbacks: {
                     onEpochEnd: async (epoch, logs) => {
-                        // Сохраняем каждые N итераций
                         if (epoch % saveInterval === 0 || epoch === iterations - 1) {
                             const weights = model.layers[0].getWeights()[0].dataSync();
                             const bias = model.layers[0].getWeights()[1].dataSync()[0];
@@ -226,9 +277,6 @@ app.post('/train_model', async (req, res) => {
             saveInterval: saveInterval,
             final_model: trainingHistory[trainingHistory.length - 1],
             training_time: trainingTime
-            // final_model: trainingHistory.length > 0 
-            //     ? trainingHistory[trainingHistory.length - 1]
-            //     : null
         });
     } catch (error) {
         console.error('Training error:', error);
@@ -246,27 +294,68 @@ function generateEquation(weights, bias) {
 }
 
 function calculateError(testData, predictions, lossFunction) {
+    if (testData.length === 0) return 0;
+
+    const sortedPreds = [...predictions].sort((a, b) => a.x - b.x);
+    
     let error = 0;
     for (const point of testData) {
-        const pred = predictions.find(p => p.x === point.x)?.y || 0;
-        if (lossFunction === "MSE") {
-            error += Math.pow(pred - point.y, 2);
-        } else {
-            error += Math.abs(pred - point.y);
+        const index = sortedPreds.findIndex(p => p.x >= point.x);
+        if (index === -1 || index === 0) {
+            const pred = sortedPreds[0]?.y || 0;
+            error += calculateLoss(pred, point.y, lossFunction);
+            continue;
         }
+
+        const prev = sortedPreds[index - 1];
+        const next = sortedPreds[index];
+        const fraction = (point.x - prev.x) / (next.x - prev.x);
+        const interpolatedY = prev.y + fraction * (next.y - prev.y);
+        
+        error += calculateLoss(interpolatedY, point.y, lossFunction);
     }
+
     return error / testData.length;
 }
 
+function calculateLoss(pred, actual, lossFunction) {
+    return lossFunction === "MSE" 
+        ? Math.pow(pred - actual, 2) 
+        : Math.abs(pred - actual);
+}
+
 function calculateR2(testData, predictions) {
+    if (testData.length === 0) return 0;
+
+    const sortedPreds = [...predictions].sort((a, b) => a.x - b.x);
     const yMean = testData.reduce((sum, p) => sum + p.y, 0) / testData.length;
     let ssTotal = 0;
     let ssResidual = 0;
+
     for (const point of testData) {
-        const pred = predictions.find(p => p.x === point.x)?.y || 0;
+        const index = sortedPreds.findIndex(p => p.x >= point.x);
+
+        if (index === -1) {
+            const lastPred = sortedPreds[sortedPreds.length - 1]?.y || 0;
+            ssTotal += Math.pow(point.y - yMean, 2);
+            ssResidual += Math.pow(point.y - lastPred, 2);
+            continue;
+        } else if (index === 0) {
+            const firstPred = sortedPreds[0]?.y || 0;
+            ssTotal += Math.pow(point.y - yMean, 2);
+            ssResidual += Math.pow(point.y - firstPred, 2);
+            continue;
+        }
+
+        const prev = sortedPreds[index - 1];
+        const next = sortedPreds[index];
+        const fraction = (point.x - prev.x) / (next.x - prev.x);
+        const interpolatedY = prev.y + fraction * (next.y - prev.y);
+
         ssTotal += Math.pow(point.y - yMean, 2);
-        ssResidual += Math.pow(point.y - pred, 2);
+        ssResidual += Math.pow(point.y - interpolatedY, 2);
     }
+
     return 1 - (ssResidual / ssTotal);
 }
 

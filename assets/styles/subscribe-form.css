@@ -1,5 +1,5 @@
 .param-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
   }
   .param-header {
     display: flex;
@@ -10,6 +10,10 @@
   .param-name {
     font-weight: 500;
     font-size: 14px;
+  }
+  .param-time {
+    font-weight: 500;
+    font-size: 18px;
   }
   .param-value {
     font-weight: bold;

@@ -45,7 +45,12 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("iterations-value").textContent = iterationsInput.value;
         document.getElementById("learning-rate-value").textContent = learningRateInput.value;
         document.getElementById("current-iteration-value").textContent = iterationStepInput.value;
-        // document.getElementById("training-time-value").textContent = `${data.training_time.toFixed(3)} сек`;
+        document.querySelectorAll('#sin-amp, #sin-freq, #sqrt-coeff, #linear-coeff').forEach(input => {
+            input.addEventListener('input', () => {
+                document.getElementById(`${input.id}-value`).textContent = input.value;
+                debouncedRender();
+            });
+        });
     }
 
     updateSliderValues();
@@ -98,7 +103,30 @@ document.addEventListener("DOMContentLoaded", () => {
         renderChart();
     });
 
-    // Добавьте обработчик изменения ползунка
+    let debounceTimeout;
+    const DEBOUNCE_DELAY = 500; 
+
+    function debouncedRender() {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+            fetch("http://localhost:3000/reset_points", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    coefficients: {
+                        sinAmplitude: parseFloat(document.getElementById('sin-amp').value),
+                        sinFrequency: parseFloat(document.getElementById('sin-freq').value),
+                        sqrtCoeff: parseFloat(document.getElementById('sqrt-coeff').value),
+                        linearCoeff: parseFloat(document.getElementById('linear-coeff').value),
+                        xMin: 0,
+                        xMax: 10
+                    },
+                    noiseLevel: parseFloat(noiseLevelInput.value)
+                })
+            }).then(() => renderChart());
+        }, DEBOUNCE_DELAY);
+    }
+
     iterationStepInput.addEventListener("input", () => {
         if (!trainingHistory.length) return;
         
@@ -142,11 +170,19 @@ document.addEventListener("DOMContentLoaded", () => {
         updateSliderValues();
         
         try {
+            const coefficients = {
+                sinAmplitude: parseFloat(document.getElementById('sin-amp').value),
+                sinFrequency: parseFloat(document.getElementById('sin-freq').value),
+                sqrtCoeff: parseFloat(document.getElementById('sqrt-coeff').value),
+                linearCoeff: parseFloat(document.getElementById('linear-coeff').value)
+            };
+    
             await fetch("http://localhost:3000/update_noise", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
-                    noiseLevel: parseFloat(noiseLevelInput.value) 
+                    noiseLevel: parseFloat(noiseLevelInput.value),
+                    coefficients: coefficients 
                 })
             });
             
@@ -158,6 +194,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     resetPointsBtn.addEventListener("click", async () => {
         try {
+            document.getElementById('sin-amp').value = 3;
+            document.getElementById('sin-freq').value = 0.5;
+            document.getElementById('sqrt-coeff').value = 2;
+            document.getElementById('linear-coeff').value = 0;
+
             trainRatioInput.value = 70;
             testRatioInput.value = 30;
             noiseLevelInput.value = 0.5;
@@ -176,6 +217,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     noiseLevel: 0.5,
+                    coefficients: {
+                        sinAmplitude: 3,
+                        sinFrequency: 0.5,
+                        sqrtCoeff: 2,
+                        linearCoeff: 0
+                    },
                     degree: 1 
                 })
             });
@@ -240,11 +287,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateChartWithHistory() {
         if (!currentModelState || !window.myChart) return;
     
-        // Обновляем прогнозы
         window.myChart.data.datasets[2].data = currentModelState.predictions;
         
-        
-        // Обновляем метки осей
         window.myChart.options.scales.x.min = 0;
         window.myChart.options.scales.x.max = 10;
         
@@ -252,31 +296,70 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function calculateError(testData, predictions, lossFunction) {
+        if (testData.length === 0) return 0;
+    
+        const sortedPreds = [...predictions].sort((a, b) => a.x - b.x);
+        
         let error = 0;
         for (const point of testData) {
-            const pred = predictions.find(p => Math.abs(p.x - point.x) < 0.001)?.y || 0;
-            if (lossFunction === "MSE") {
-                error += Math.pow(pred - point.y, 2);
-            } else {
-                error += Math.abs(pred - point.y);
+            const index = sortedPreds.findIndex(p => p.x >= point.x);
+            if (index === -1 || index === 0) {
+                const pred = sortedPreds[0]?.y || 0;
+                error += calculateLoss(pred, point.y, lossFunction);
+                continue;
             }
+    
+            const prev = sortedPreds[index - 1];
+            const next = sortedPreds[index];
+            const fraction = (point.x - prev.x) / (next.x - prev.x);
+            const interpolatedY = prev.y + fraction * (next.y - prev.y);
+            
+            error += calculateLoss(interpolatedY, point.y, lossFunction);
         }
-        return testData.length > 0 ? error / testData.length : 0;
+    
+        return error / testData.length;
+    }
+    
+    function calculateLoss(pred, actual, lossFunction) {
+        return lossFunction === "MSE" 
+            ? Math.pow(pred - actual, 2) 
+            : Math.abs(pred - actual);
     }
     
     function calculateR2(testData, predictions) {
         if (testData.length === 0) return 0;
+    
+        const sortedPreds = [...predictions].sort((a, b) => a.x - b.x);
         const yMean = testData.reduce((sum, p) => sum + p.y, 0) / testData.length;
         let ssTotal = 0;
         let ssResidual = 0;
+    
         for (const point of testData) {
-            const pred = predictions.find(p => Math.abs(p.x - point.x) < 0.001)?.y || 0;
+            const index = sortedPreds.findIndex(p => p.x >= point.x);
+
+            if (index === -1) {
+                const lastPred = sortedPreds[sortedPreds.length - 1]?.y || 0;
+                ssTotal += Math.pow(point.y - yMean, 2);
+                ssResidual += Math.pow(point.y - lastPred, 2);
+                continue;
+            } else if (index === 0) {
+                const firstPred = sortedPreds[0]?.y || 0;
+                ssTotal += Math.pow(point.y - yMean, 2);
+                ssResidual += Math.pow(point.y - firstPred, 2);
+                continue;
+            }
+    
+            const prev = sortedPreds[index - 1];
+            const next = sortedPreds[index];
+            const fraction = (point.x - prev.x) / (next.x - prev.x);
+            const interpolatedY = prev.y + fraction * (next.y - prev.y);
+    
             ssTotal += Math.pow(point.y - yMean, 2);
-            ssResidual += Math.pow(point.y - pred, 2);
+            ssResidual += Math.pow(point.y - interpolatedY, 2);
         }
+    
         return 1 - (ssResidual / ssTotal);
     }
-
 
     async function renderChart() {
         const startTime = Date.now();
@@ -290,6 +373,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }, 100);
 
             const lossFunction = lossMseBtn.classList.contains("active") ? "MSE" : "MAE";
+            const coefficients = {
+                sinAmplitude: parseFloat(document.getElementById('sin-amp').value),
+                sinFrequency: parseFloat(document.getElementById('sin-freq').value),
+                sqrtCoeff: parseFloat(document.getElementById('sqrt-coeff').value),
+                linearCoeff: parseFloat(document.getElementById('linear-coeff').value)
+            };
 
             const response = await fetch("http://localhost:3000/train_model", {
                 method: "POST",
@@ -302,7 +391,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     loss_function: lossFunction,
                     regularizationType: regularizationSelect.value,
                     iterations: parseInt(iterationsInput.value),
-                    learningRate: parseFloat(learningRateInput.value)
+                    learningRate: parseFloat(learningRateInput.value),
+                    coefficients: coefficients
                 })
             });
 
@@ -326,10 +416,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const degree = parseInt(degreeInput.value);
             const result = regression.polynomial(regressionData, { order: degree, precision: 10 });
 
-            // iterationStepInput.max = iterationsInput.value;
-            // iterationStepInput.value = iterationStepInput.max;
-            // updateSliderValues();
-
             currentModelState = data.final_model || null;
             
             const regressionPredictions = Array.from({ length: 100 }, (_, i) => {
@@ -352,8 +438,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (window.myChart) {
                 window.myChart.destroy();
             }
-
-            const minData = [{x: 0, y: 0}, {x: 10, y: 10}];
 
             window.myChart = new Chart(ctx, {
                 type: 'scatter',
@@ -412,23 +496,23 @@ document.addEventListener("DOMContentLoaded", () => {
                             text: data.equation ? 
                             [
                                 `Уравнение: ${formatEquation(data.equation, 2)}`,
-                                `Уравнение регрессии: ${formatEquation(regressionEquation, 2)}`,
                                 `R²: ${data.r2.toFixed(2)} | Ошибка (${lossFunction}): ${data.test_error.toFixed(2)}`,
-                                `R² (Регрессия): ${regressionR2.toFixed(2)} | Ошибка регрессии: ${regressionTestError.toFixed(2)}`
+                                `Уравнение регрессии: ${formatEquation(regressionEquation, 2)}`,
+                                `R² (Регрессия): ${regressionR2.toFixed(2)} | Ошибка регрессии (${lossFunction}): ${regressionTestError.toFixed(2)}`
                             ] 
                             : ["Добавьте данные для построения модели"],
                             font: {
                                 size: 16,
                                 weight: 'bold',
                             },
-                            color: '#333'
+                            color: '#808080'
                         },
                         legend: {
                             labels: {
                                 font: {
                                     size: 14
                                 },
-                                color: '#333'
+                                color: '#808080'
                             }
                         }
                     },
@@ -466,6 +550,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error("Ошибка при отображении графика:", error);
 
+        } finally {
+            clearInterval(timerInterval);
         }
     }
 
