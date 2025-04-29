@@ -31,6 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const lossMseBtn = document.getElementById("loss-mse");
     const lossMaeBtn = document.getElementById("loss-mae");
     const regularizationSelect = document.getElementById("regularization-type");
+    const iterationStepInput = document.getElementById("iteration-step");
+    let trainingHistory = [];
+    let currentModelState = null;
     let selectedPointId = null;
     let pointsData = [];
 
@@ -41,6 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("degree-value").textContent = degreeInput.value;
         document.getElementById("iterations-value").textContent = iterationsInput.value;
         document.getElementById("learning-rate-value").textContent = learningRateInput.value;
+        document.getElementById("current-iteration-value").textContent = iterationStepInput.value;
+        // document.getElementById("training-time-value").textContent = `${data.training_time.toFixed(3)} сек`;
     }
 
     updateSliderValues();
@@ -91,6 +96,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     regularizationSelect.addEventListener("change", () => {
         renderChart();
+    });
+
+    // Добавьте обработчик изменения ползунка
+    iterationStepInput.addEventListener("input", () => {
+        if (!trainingHistory.length) return;
+        
+        const maxStep = trainingHistory.length - 1;
+        const stepIndex = Math.round(iterationStepInput.value / 100 * maxStep);
+        
+        currentModelState = trainingHistory[stepIndex];
+        document.getElementById("current-iteration-value").textContent = currentModelState.step;
+        updateChartWithHistory();
     });
 
     addPointBtn.addEventListener("click", async () => {
@@ -220,9 +237,58 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/(\d)\.0+([^\d])/g, '$1$2');
     }
 
+    function updateChartWithHistory() {
+        if (!currentModelState || !window.myChart) return;
+    
+        // Обновляем прогнозы
+        window.myChart.data.datasets[2].data = currentModelState.predictions;
+        
+        
+        // Обновляем метки осей
+        window.myChart.options.scales.x.min = 0;
+        window.myChart.options.scales.x.max = 10;
+        
+        window.myChart.update();
+    }
+
+    function calculateError(testData, predictions, lossFunction) {
+        let error = 0;
+        for (const point of testData) {
+            const pred = predictions.find(p => Math.abs(p.x - point.x) < 0.001)?.y || 0;
+            if (lossFunction === "MSE") {
+                error += Math.pow(pred - point.y, 2);
+            } else {
+                error += Math.abs(pred - point.y);
+            }
+        }
+        return testData.length > 0 ? error / testData.length : 0;
+    }
+    
+    function calculateR2(testData, predictions) {
+        if (testData.length === 0) return 0;
+        const yMean = testData.reduce((sum, p) => sum + p.y, 0) / testData.length;
+        let ssTotal = 0;
+        let ssResidual = 0;
+        for (const point of testData) {
+            const pred = predictions.find(p => Math.abs(p.x - point.x) < 0.001)?.y || 0;
+            ssTotal += Math.pow(point.y - yMean, 2);
+            ssResidual += Math.pow(point.y - pred, 2);
+        }
+        return 1 - (ssResidual / ssTotal);
+    }
+
 
     async function renderChart() {
+        const startTime = Date.now();
+        let timerInterval;
+
         try {
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                document.getElementById("training-time-value").textContent = 
+                    `${elapsed.toFixed(1)} сек...`;
+            }, 100);
+
             const lossFunction = lossMseBtn.classList.contains("active") ? "MSE" : "MAE";
 
             const response = await fetch("http://localhost:3000/train_model", {
@@ -240,13 +306,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
             });
 
-            
+            clearInterval(timerInterval);
+
             const data = await response.json();
             const ctx = document.getElementById('regression-chart').getContext('2d');
 
+            const endTime = Date.now();
+            const trainingTime = (endTime - startTime) / 1000;
+            document.getElementById("training-time-value").textContent = 
+                `${data.training_time?.toFixed(3) || trainingTime.toFixed(3)} сек`;
+
+            trainingHistory = data.training_history || [];
+            iterationStepInput.max = trainingHistory.length - 1;
+            iterationStepInput.value = iterationStepInput.max;
+            updateSliderValues();
+
             const regressionData = data.train_data.map(p => [p.x, p.y]);
+
             const degree = parseInt(degreeInput.value);
             const result = regression.polynomial(regressionData, { order: degree, precision: 10 });
+
+            // iterationStepInput.max = iterationsInput.value;
+            // iterationStepInput.value = iterationStepInput.max;
+            // updateSliderValues();
+
+            currentModelState = data.final_model || null;
             
             const regressionPredictions = Array.from({ length: 100 }, (_, i) => {
                 const x = i * 0.1;
@@ -255,6 +339,10 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             const regressionEquation = result.string
+
+            const testData = data.test_data;
+            const regressionTestError = calculateError(testData, regressionPredictions, lossFunction);
+            const regressionR2 = calculateR2(testData, regressionPredictions);
 
             if (!data.predictions) {
                 console.error("Нет данных для прогноза:", data);
@@ -325,7 +413,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             [
                                 `Уравнение: ${formatEquation(data.equation, 2)}`,
                                 `Уравнение регрессии: ${formatEquation(regressionEquation, 2)}`,
-                                `R²: ${data.r2.toFixed(2)} | Ошибка (${lossFunction}): ${data.test_error.toFixed(2)}`
+                                `R²: ${data.r2.toFixed(2)} | Ошибка (${lossFunction}): ${data.test_error.toFixed(2)}`,
+                                `R² (Регрессия): ${regressionR2.toFixed(2)} | Ошибка регрессии: ${regressionTestError.toFixed(2)}`
                             ] 
                             : ["Добавьте данные для построения модели"],
                             font: {

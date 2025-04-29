@@ -84,6 +84,13 @@
               <input type="range" id="noise-level" min="0" max="1" step="0.1" value="0.5">
               <div class="param-range">Диапазон: 0 - 1</div>
             </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Время обучения</span>
+                <span id="training-time-value" class="param-value">0.00 сек</span>
+              </div>
+            </div>
           </div>
         
           <div class="visualization">
@@ -131,6 +138,15 @@
               <input type="range" id="iterations" min="100" max="10000" step="100" value="1000">
               <div class="param-range">Диапазон: 100 - 10,000</div>
             </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Текущая итерация</span>
+                <span id="current-iteration-value" class="param-value">0</span>
+              </div>
+              <input type="range" id="iteration-step" min="0" max="100" value="100">
+              <div class="param-range">Этап обучения: 0 - 100%</div>
+            </div>
         
             <div class="param-group">
               <div class="param-header">
@@ -140,14 +156,6 @@
               <input type="range" id="learning-rate" min="0.001" max="1" step="0.001" value="0.01">
               <div class="param-range">Диапазон: 0.001 - 1</div>
             </div>
-            <!-- <div class="param-group">
-              <div class="param-header">
-                  <span class="param-name">Сила регуляризации</span>
-                  <span id="reg-strength-value" class="param-value">0.01</span>
-              </div>
-              <input type="range" id="reg-strength" min="0" max="0.1" step="0.001" value="0.01">
-              <div class="param-range">Диапазон: 0 - 0.1</div>
-            </div> -->
         
             <button id="reset-points" class="full-width">Сбросить все</button>
           </div>
