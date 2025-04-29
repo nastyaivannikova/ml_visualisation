@@ -1,0 +1,36 @@
+.site-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+    background-color: inherit;
+}
+
+.header__nav-list {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    margin: 0;
+}
+
+.header__logo img {
+    width: 40px;
+    height: auto;
+    vertical-align: middle;
+}
+
+.header__logo__bachground img {
+    width: 20px;
+    height: auto;
+    vertical-align: middle; 
+}
+
+.header_nav-list {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    margin: 0;
+}

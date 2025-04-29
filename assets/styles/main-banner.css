@@ -1,0 +1,97 @@
+/* .hero-main  {
+    display: flex;
+    align-items: center;
+    gap: 0 60px;
+} */
+
+.hero-main {
+    display: flex;
+    flex-direction: column; /* Расположить элементы вертикально */
+    justify-content: center; /* Центровка по вертикали */
+    align-items: center; /* Центровка по горизонтали */
+    text-align: center; /* Выравнивание текста */
+    height: 70vh; /*Высота секции на весь экран */
+    color: white;
+}
+
+.hero-main__details {
+    /* width: calc(100% - 710px); */
+    background-image: url("../images/background_image.png");
+    z-index: 1;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: cover;
+    height: 100%; /* Убедитесь, что секция занимает высоту экрана */
+    width: 100%; /* Убедитесь, что секция занимает всю ширину */
+    /* background-color: red; */
+}
+
+.hero-main__title {
+    font-size: 4.375rem;
+    font-weight: 400;
+    line-height: 0.5;
+    margin-bottom: 70px;
+    margin-top: 150px;
+}
+
+.hero-main__subtitle {
+    font-size: 2.375rem;
+    font-weight: 400;
+    line-height: 0.5;
+    margin-bottom: 70px;
+}
+
+.hero-main__title--higlighed {
+    display: inline-block;
+    position: relative;
+}
+
+.hero-main__title--higlighed::after {
+    content: '';
+    position: absolute;
+
+    top: calc(100% - 5px);
+    left: 0;
+    right: 0;
+    height: 12px;
+    background-image: url('../images//hero-higlight.svg');
+}
+
+.hero-main__title--strong {
+    font-weight: 700;
+    font-size: 5rem;
+}
+
+.host__icon {
+    background-color: #118DA8;
+    border-radius: 100px;
+    width: 112px;
+    height: 112px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.host__icon img {
+    width: 71px;
+}
+
+.host__title {
+    margin-bottom: 25px;
+    font-size: 4.06rem;
+}
+
+.host__description p {
+    margin-top: 0;
+    margin-bottom: 30px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.37rem;
+}
+
+.host__description p:last-of-type {
+    margin-bottom: 0;
+}
+

@@ -1,0 +1,25 @@
+  .visualization-interface {
+    display: grid;
+    grid-template-columns: 250px 1fr 250px;
+    gap: 20px;
+    padding: 20px;
+    height: 100vh;
+    width: 95%;
+    margin: 0 auto;
+  }
+  
+  .controls, .model-parameters {
+    padding: 15px;
+    border-radius: 8px;
+  }
+  
+  .visualization {
+    width: 100%;
+    min-height: 0;
+  }
+
+  #regression-chart {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }

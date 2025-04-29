@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visualization</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/styles//index.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="/main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/regression@2.0.1/dist/regression.min.js"></script>
+  </head>
+  <body>
+    <div class="app-wrapper">
+      <header class="site-header content-row" id="home">
+        <div class="header__logo">
+          <img src="./assets/images/icons/image.png" alt="" class="logo-icon dark-icon">
+          <img src="./assets/images/icons/image_light.png" alt="" class="logo-icon light-icon">
+        </div>
+        <nav class="header__nav">
+          <ul class="header__nav-list">
+            <li>
+              <a href="#" class="header__logo__bachground">
+                <img src="./assets/images/icons/sun.png" alt="Темная тема" class="theme-icon dark-icon">
+                <img src="./assets/images/icons/moon.png" alt="Светлая тема" class="theme-icon light-icon">
+              </a>
+            </li>
+        </nav>
+      </header>
+      <main>
+        <section class="hero-main">
+          <div class="hero-main__details">
+            <h1 class="hero-main__title">
+              Визуализация алгоритмов 
+              <br><br> 
+              машинного обучения
+            </h1>
+            <h3 class="hero-main__subtitle">
+              Линейная и полиномиальная регрессия
+            </h3>
+          </div>
+        </section>
+        <section class="visualization-interface content-row" id="graph">
+          <div class="controls">
+            <h2>Координаты</h2>
+            <div class="input-group">
+              <label for="x">X:</label>
+              <input type="text" id="x" placeholder="Введите x">
+              <label for="y">Y:</label>
+              <input type="text" id="y" placeholder="Введите y">
+            </div>
+            <button id="add-point">Добавить</button>
+            <button id="remove-point">Удалить</button>
+        
+            <h2>Разделение данных</h2>
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Обучающая выборка</span>
+                <span id="train-ratio-value" class="param-value">70%</span>
+              </div>
+              <input type="range" id="train-ratio" min="0" max="100" value="70">
+              <div class="param-range">Диапазон: 0% - 100%</div>
+            </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Тестовая выборка</span>
+                <span id="test-ratio-value" class="param-value">30%</span>
+              </div>
+              <input type="range" id="test-ratio" min="0" max="100" value="30">
+              <div class="param-range">Диапазон: 0% - 100%</div>
+            </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Стандартное отклонение шума</span>
+                <span id="noise-level-value" class="param-value">0.5</span>
+              </div>
+              <input type="range" id="noise-level" min="0" max="1" step="0.1" value="0.5">
+              <div class="param-range">Диапазон: 0 - 1</div>
+            </div>
+          </div>
+        
+          <div class="visualization">
+            <canvas id="regression-chart"></canvas>
+          </div>
+        
+          <div class="model-parameters">
+            <h2>Параметры обучения</h2>
+            
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Степень полинома</span>
+                <span id="degree-value" class="param-value">1</span>
+              </div>
+              <input type="range" id="degree" min="1" max="16" value="1">
+              <div class="param-range">Диапазон: 1 - 16</div>
+            </div>
+        
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Функция потерь</span>
+              </div>
+              <div class="param-controls">
+                <button id="loss-mse" class="loss-button active">MSE</button>
+                <button id="loss-mae" class="loss-button">MAE</button>
+              </div>
+            </div>
+        
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Тип регуляризации</span>
+              </div>
+              <select id="regularization-type" class="full-width">
+                <option value="">None</option>
+                <option value="L1">L1 (Lasso)</option>
+                <option value="L2">L2 (Ridge)</option>
+              </select>
+            </div>
+        
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Количество итераций</span>
+                <span id="iterations-value" class="param-value">1000</span>
+              </div>
+              <input type="range" id="iterations" min="100" max="10000" step="100" value="1000">
+              <div class="param-range">Диапазон: 100 - 10,000</div>
+            </div>
+        
+            <div class="param-group">
+              <div class="param-header">
+                <span class="param-name">Скорость обучения</span>
+                <span id="learning-rate-value" class="param-value">0.01</span>
+              </div>
+              <input type="range" id="learning-rate" min="0.001" max="1" step="0.001" value="0.01">
+              <div class="param-range">Диапазон: 0.001 - 1</div>
+            </div>
+            <!-- <div class="param-group">
+              <div class="param-header">
+                  <span class="param-name">Сила регуляризации</span>
+                  <span id="reg-strength-value" class="param-value">0.01</span>
+              </div>
+              <input type="range" id="reg-strength" min="0" max="0.1" step="0.001" value="0.01">
+              <div class="param-range">Диапазон: 0 - 0.1</div>
+            </div> -->
+        
+            <button id="reset-points" class="full-width">Сбросить все</button>
+          </div>
+        </section>
+            
+
+        <section class="content-row content-row--spaced" id="explanations">
+          <ul class="reviews-list">
+            <li>
+              <div class="review-card">
+                  <div class="review-card__rating">
+                    <img src="./assets//images//icons/info.png" alt="Info">
+                  </div>
+                  <div class="review-card__text">
+                    Обучающая выборка
+                  </div>
+                <div class="review-card__author">
+                  Доля данных, используемых для обучения модели. Больше данных обычно улучшают качество модели.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Тестовая выборка
+                </div>
+                <div class="review-card__author">
+                  Доля данных, используемых для оценки качества обученной модели. Должна быть независима от обучающей выборки.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Стандартное отклонение шума
+                </div>
+                <div class="review-card__author">
+                  Определяет величину случайного отклонения точек данных от идеальной кривой. Увеличивает разброс данных.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Количество итераций
+                </div>
+                <div class="review-card__author">
+                  Число шагов градиентного спуска, выполняемых при обучении модели. Больше итераций может улучшить обучение, но может привести к переобучению.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Функция потерь
+                </div>
+                <div class="review-card__author">
+                  • MSE (Средняя квадратичная ошибка): Измеряет средний квадрат отклонения прогнозов от истинных значений. Чувствительна к выбросам.<br></br> • MAE (Абсолютная функция потерь): Измеряет среднее абсолютное отклонение прогнозов от истинных значений. Менее чувствительна к выбросам, чем MSE.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Тип регуляризации (L1 или L2)
+                </div>
+                <div class="review-card__author">
+                  • L1 (Lasso): Добавляет сумму абсолютных значений весов к функции потерь, способствует отбору признаков (уменьшению весов до нуля).<br></br> • L2 (Ridge): Добавляет сумму квадратов весов к функции потерь, уменьшает значения весов, предотвращая переобучение.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Степень полинома
+                </div>
+                <div class="review-card__author">
+                  Степень полинома, который используется для аппроксимации данных. Более высокие значения могут привести к более сложной кривой, но также к переобучению.
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="review-card">
+                <div class="review-card__rating">
+                  <img src="./assets//images//icons/info.png" alt="Info">
+                </div>
+                <div class="review-card__text">
+                  Скорость обучения (Learning rate)
+                </div>
+                <div class="review-card__author">
+                  Определяет величину шага градиентного спуска. Слишком большое значение может привести к нестабильности, слишком маленькое — к медленному обучению.
+                </div>
+              </div>
+            </li>
+          </ul>
+        </section>
+        
+        
+      </main>
+      <footer class="site-footer">
+        <div class="content-row site-footer-content">
+          <div class="footer-info">
+            <div class="header__logo">
+              <img src="./assets/images/icons/image.png" alt="" class="logo-icon dark-icon">
+              <img src="./assets/images/icons/image_light.png" alt="" class="logo-icon light-icon">
+            </div>
+            <div class="footer-contacts">
+              <p>Иванникова Анастасия Игоревна</p>
+              <p>Национальный исследовательский университет</p>
+              <p>"Высшая школа экономики"</p>
+              <p>aiivannikova_1@edu.hse.ru</p>
+            </div>
+          </div>
+      
+          <nav class="footer-nav">
+            <ul class="footer-nav-list">
+              <li><a href="#home">Главная</a></li>
+              <li><a href="#graph">График</a></li>
+              <li><a href="#explanations">Объяснения</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="footer-year">2025</div>
+      </footer> 
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

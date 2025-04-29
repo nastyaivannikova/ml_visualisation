@@ -1,0 +1,70 @@
+.param-group {
+    margin-bottom: 1.5rem;
+  }
+  .param-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .param-name {
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .param-value {
+    font-weight: bold;
+    color: #3a86ff;
+    font-size: 14px;
+  }
+  .param-range {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.3rem;
+  }
+  
+  button {
+    padding: 8px 12px;
+    background: #3a86ff;
+    /* color: white; */
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 5px 0;
+  }
+  
+  button:hover {
+    background: #2667cc;
+  }
+  
+  input[type="range"] {
+    width: 100%;
+  }
+  
+  input[type="text"] {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 90%;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+  }
+
+  .loss-button {
+    padding: 8px 16px;
+    border: 1px solid #3a86ff;
+    background-color: #3a86ff;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.loss-button.active {
+    background-color: #0e4296;
+    color: white;
+    border-color: #0e4296;
+}
+
+.loss-button:hover {
+    background-color: #3a86ff;
+}
